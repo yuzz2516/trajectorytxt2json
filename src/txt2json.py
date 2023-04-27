@@ -1,6 +1,8 @@
 import csv
 import pandas as pd
 import json
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 class Text2Json:
     def __init__(self, filename:str):
@@ -15,7 +17,7 @@ class Text2Json:
 
     def calc_coords(self, x:int, y:int, w:int, h:int) -> int:
         # boundingboxの中央下部座標を算出する
-        x_c = x + w / 2
+        x_c = x + (w / 2)
         y_t = y + h
         x_c.to_numpy()
         y_t.to_numpy()
@@ -24,25 +26,42 @@ class Text2Json:
 
         return x_c, y_t
 
+    def calc_x(self, row):
+        return int(row['x'] + row['w'] / 2)
+    
+    def calc_y(self, row):
+        return row['y'] + row['h']
+
     def text2json(self) -> str:
-        df = self.read_txt(self.filename)
+        df = self.read_txt()
         x = df['x']
         y = df['y']
         w = df['w']
         h = df['h']
-        x_c, y_t = self.calc_coords(x, y, w, h)
-        df = df.replace({'x': x_c, 'y': y_t})
+        f = df['frame']
+        cl = df['class']
+        co = df['conf']
+        df['x_c'] = df.apply(self.calc_x, axis='columns')
+        df['y_t'] = df.apply(self.calc_y, axis='columns')
+        print(df.head(5))
+
+        # fig, ax = plt.subplots()
+        # img = mpimg.imread('toyanobashi.png')
+        # ax.imshow(img)
+        # ax.scatter(x_c, y_t)
+        # plt.show()
         groups = df.groupby('id')
 
         # JSONの生成と書き込み
         result = {}
+        dict_id = {}
         for group_name, group_data in groups:
-            time_and_pos = group_data[['frame', 'x', 'y', 'class', 'conf']].to_dict('records')
+            time_and_pos = group_data[['frame', 'x_c', 'y_t', 'class', 'conf']].to_dict(orient='records')
             for item in time_and_pos:
-                item['pos'] = [item.pop('x'), item.pop('y')]
+                item['pos'] = [item.pop('x_c'), item.pop('y_t')]
+                time_and_pos_dict = {'time_and_pos': time_and_pos}
+                result[group_name] = time_and_pos_dict
             
-            result[group_name] = {'time_and_pos': time_and_pos}
-
         with open('./json/{}.json'.format(self.filename), 'w') as f:
             json.dump(result, f, indent=1, ensure_ascii=False)
 
