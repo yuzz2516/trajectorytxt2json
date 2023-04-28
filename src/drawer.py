@@ -1,53 +1,36 @@
-import matplotlib.pyplot as plt
 import cv2
+import numpy as np
+import matplotlib.pyplot as plt
 
-class PolygonDrawer(object):
-    def polygon(s_list:list, e_list:list, filename:str) -> list:
-        polygon = get_clicked_points(filename + '.png')
-        #polygon = [[512, 410], [520, 330], [588, 267], [621, 410], [1546, 1074], [1064, 1074]]
+class FindPolygon():
+    def __init__(self, filename):
+        self.filename = filename
 
-        poly_path = mpath.Path(polygon)
+    def __call__(self):
+        origin_img = cv2.imread(self.filename + '.png')
+        h, w, c = origin_img.shape
+        depthplot_img = cv2.imread('depthplot_' + self.filename + '.png')
+        h2, w2, c2= depthplot_img.shape
+        resized_img = cv2.resize(depthplot_img, None, fy=h/h2, fx=w/w2)
+        print(resized_img.shape)
 
-        start_inside_points = []
-        for point in s_list:
-            if poly_path.contains_point(point):
-                start_inside_points.append(point)
+        # 色の範囲を抽出する
+        mask = cv2.inRange(resized_img, (0, 255, 0), (0, 255, 0))
+        # 輪郭を検出する
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        end_inside_points = []
-        for point in e_list:
-            if poly_path.contains_point(point):
-                end_inside_points.append(point)
+        # 輪郭をポリゴンに変換する
+        contour = max(contours, key=cv2.contourArea)
+        epsilon = 0.001 * cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, epsilon, closed=False)
+        approx = approx.astype(np.float64)
+        approx_reshaped = approx.reshape((approx.shape[0], 2))
 
-        # print('Inside points (Start)', start_inside_points)
-        # print('Inside points (End)', end_inside_points)
+        # ポリゴンを描画する
+        # output = np.zeros_like(origin_img)
+        # cv2.polylines(origin_img, [approx], True, (0, 0, 255), 2)
+        # cv2.imshow('image', origin_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        return approx_reshaped
 
-        return polygon, start_inside_points, end_inside_points
-
-    def get_clicked_points(filename):
-        clicked_points = []
-
-        def mouse_callback(event, x, y, flags, param):
-            if event == cv2.EVENT_LBUTTONDOWN:
-                clicked_points.append((x, y))
-
-        image = cv2.imread(filename)
-        cv2.namedWindow("image")
-        cv2.setMouseCallback("image", mouse_callback)
-
-        while True:
-            cv2.imshow("image", image)
-            key = cv2.waitKey(1) & 0xFF
-
-            if key == ord("q"):
-                break
-
-        cv2.destroyAllWindows()
-
-        return clicked_points
-
-if __name__ == '__main__':
-    fig, ax = plt.subplots()
-    img = plt.imread('Jingubashi.png')
-    ax.imshow(img)
-    drawer = PolygonDrawer(ax)
-    plt.show()

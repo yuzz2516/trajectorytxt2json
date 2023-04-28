@@ -12,6 +12,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler 
 from sklearn.metrics import accuracy_score
 
+from drawer import FindPolygon
+
 '''''''''''''''''''''''''''''''''''''''''''''
 基本的にjson形式から新たなデータを起こすように設計する。
 '''''''''''''''''''''''''''''''''''''''''''''
@@ -26,10 +28,12 @@ def main(filename:str) -> str:
 
     # ポリゴン領域内にある座標の内外判定をし、内側にあるものを返す関数
     polygon_points, start_inside_points, end_inside_points = polygon(s_list, e_list, filename)
+    print(end_inside_points)
 
     # サポートベクターマシンにかける
     SVM(polygon_points, start_inside_points, end_inside_points, filename)
     #draw_image(start_inside_points, end_inside_points, polygon_points, filename)
+
 
 def split_coords(json_data:str) -> list:
     # 各ID内のframeの最大値と最小値を取得する
@@ -68,7 +72,10 @@ def get_pos_range(json_data:str, vehicle_id:int) -> dict:
 
 # 領域内に存在する始点、終点群の内外判定をし、内側にあるものをリストで返す
 def polygon(s_list:list, e_list:list, filename:str) -> list:
-    polygon = get_clicked_points(filename + '.png')
+    poly = FindPolygon(filename)
+    polygon = poly()
+
+    #polygon = get_clicked_points(filename + '.png')
     #polygon = [[512, 410], [520, 330], [588, 267], [621, 410], [1546, 1074], [1064, 1074]]
 
     poly_path = mpath.Path(polygon)
@@ -170,7 +177,6 @@ def SVM(polygon_points:list ,start_inside_point:list, end_inside_point:list, fil
     a = -w[0] / w[1]
     xx = np.linspace(0, 1920, 10)
     yy = a * xx - (intercept[0]) / w[1]
-    print(yy)
     margin = 1 / np.sqrt(np.sum(coef ** 2))
     yy_down = yy - np.abs(a) * margin
     yy_up = yy + np.abs(a) * margin
